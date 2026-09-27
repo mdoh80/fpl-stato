@@ -91,7 +91,7 @@ class FPLAssistant:
         self,
         data_client: FPLDataClient | None = None,
         openai_client: Any | None = None,
-        model: str = "gpt-5.6",
+        model: str = "gpt-6-luna",
     ) -> None:
         self.data_client = data_client or FPLDataClient()
         self.openai_client = openai_client if openai_client is not None else __import__("openai").OpenAI()
@@ -108,6 +108,7 @@ class FPLAssistant:
         )
         response = self.openai_client.responses.create(
             model=self.model,
+            max_output_tokens=500,
             input=[
                 {"role": "system", "content": SYSTEM_INSTRUCTIONS},
                 {"role": "user", "content": prompt},
