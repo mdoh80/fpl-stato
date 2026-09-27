@@ -1,6 +1,29 @@
+import json
 from unittest.mock import Mock
 
-from fpl_stato import FPLAssistant, FPLSnapshot
+from fpl_stato import FPLAssistant, FPLSnapshot, build_data_context
+
+
+def test_data_context_projects_large_snapshot():
+    snapshot = FPLSnapshot(
+        manifest={"current_gameweek": 5, "files": {"bootstrap": "large.xz"}},
+        bootstrap={
+            "events": [{"id": 5, "name": "Gameweek 5", "extra": "omit"}],
+            "teams": [{"id": 1, "name": "Arsenal", "extra": "omit"}],
+            "elements": [{"id": 1, "web_name": "Saka", "total_points": 42, "history": ["omit"]}],
+            "gameweeks": [{"id": 1, "huge": "omit"}],
+        },
+        fixtures=[{"id": 10, "event": 5, "team_h": 1, "team_a": 2, "extra": "omit"}],
+        live={"elements": [{"id": 1, "stats": {"total_points": 12}, "history": ["omit"]}]},
+    )
+
+    context = json.loads(build_data_context(snapshot))
+
+    assert context["manifest"] == {"current_gameweek": 5}
+    assert context["bootstrap"]["elements"] == [{"id": 1, "web_name": "Saka", "total_points": 42}]
+    assert context["fixtures"] == [{"id": 10, "event": 5, "team_h": 1, "team_a": 2}]
+    assert context["live"]["elements"] == [{"id": 1, "stats": {"total_points": 12}}]
+    assert "huge" not in build_data_context(snapshot)
 
 
 def test_assistant_fetches_data_and_returns_openai_text():

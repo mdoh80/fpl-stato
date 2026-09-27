@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from .assistant import FPLAssistant
@@ -10,6 +11,12 @@ from .data import FPLDataError
 
 
 app = FastAPI(title="FPL Stato", version="0.1.0")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://football-bot.com", "https://www.football-bot.com"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type"],
+)
 _assistant: FPLAssistant | None = None
 
 
