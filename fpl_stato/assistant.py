@@ -108,7 +108,6 @@ class FPLAssistant:
         )
         response = self.openai_client.responses.create(
             model=self.model,
-            max_output_tokens=500,
             input=[
                 {"role": "system", "content": SYSTEM_INSTRUCTIONS},
                 {"role": "user", "content": prompt},
