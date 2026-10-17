@@ -6,7 +6,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from .assistant import FPLAssistant
+from .routing import QuestionRouter
 from .data import FPLDataError
 
 
@@ -17,7 +17,7 @@ app.add_middleware(
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Content-Type"],
 )
-_assistant: FPLAssistant | None = None
+_assistant: QuestionRouter | None = None
 
 
 class ChatRequest(BaseModel):
@@ -28,10 +28,10 @@ class ChatResponse(BaseModel):
     answer: str
 
 
-def get_assistant() -> FPLAssistant:
+def get_assistant() -> QuestionRouter:
     global _assistant
     if _assistant is None:
-        _assistant = FPLAssistant()
+        _assistant = QuestionRouter()
     return _assistant
 
 
