@@ -1,29 +1,61 @@
 # FPL Stato
 
-FPL Stato is an OpenAI-powered Fantasy Premier League assistant. It downloads
-current FPL data from the `mdoh80/fplcache` GitHub repository, then uses that
-data to answer FPL questions.
+FPL Stato is an OpenAI-powered football assistant. It answers Fantasy Premier
+League questions using current FPL data from the `mdoh80/fplcache` GitHub
+repository, and answers general football trivia using the OpenAI model's
+knowledge.
 
 ## How it works
 
 ```mermaid
 flowchart LR
     User[User] --> API[FastAPI /chat endpoint]
-    API --> Assistant[FPLAssistant]
-    Assistant --> Data[FPLDataClient]
+    API --> Router[QuestionRouter]
+    Router -->|FPL question| FPL[FPLAssistant]
+    Router -->|Other football question| Trivia[FootballTriviaAssistant]
+    FPL --> Data[FPLDataClient]
     Data --> Cache[GitHub fplcache latest branch]
     Cache -->|manifest + .json.xz files| Data
-    Assistant --> OpenAI[OpenAI Responses API]
-    OpenAI --> Assistant
-    Assistant --> API
+    FPL --> OpenAI[OpenAI Responses API]
+    Trivia --> OpenAI
+    OpenAI -->|FPL answer| FPL
+    OpenAI -->|trivia answer| Trivia
+    FPL -->|answer| API
+    Trivia -->|answer| API
     API --> User
 ```
 
-The data layer and OpenAI layer are separate:
+The routing, data, and OpenAI layers are separate:
 
+- `QuestionRouter` uses deterministic rules to route explicit FPL questions to
+  `FPLAssistant`; other football questions go to `FootballTriviaAssistant`.
 - `FPLDataClient` downloads, decompresses, and validates the FPL data.
-- `FPLAssistant` gives that data to OpenAI with the user’s question.
+- `FPLAssistant` gives the current FPL data to OpenAI with the user’s question.
+- `FootballTriviaAssistant` answers general football history, rules,
+  tournaments, and club-fact questions from the model’s knowledge. It does not
+  download live football data or use web search, so current or obscure facts
+  may be uncertain.
 - The FastAPI application exposes the assistant through HTTP.
+
+### Question routing
+
+Questions that clearly concern the user’s FPL team, transfers, captaincy
+decisions, gameweeks, chips, player prices, or FPL statistics use
+`FPLAssistant` and the current FPL snapshot. General football questions—such
+as football history, rules, tournaments, club facts, or ordinary club fixture
+questions—use `FootballTriviaAssistant` and do not load FPL data.
+
+Routing is local and deterministic; it does not make an additional model call
+just to classify a question. Ambiguous questions follow the routing rules and
+may need to be phrased with explicit FPL context for data-backed analysis.
+
+The static web client uses the API’s `skill` value to show a brief, non-blocking
+bot overlay after a successful answer. FPL responses use the commentator image
+at `football-comm.png`, while trivia responses use `football-stato.png`. The
+overlay does not classify questions itself, does not delay answers, respects
+reduced-motion preferences, and remains clear of the composer on small screens.
+The images are loaded from GitHub at runtime, so the overlay depends on that
+remote image host being reachable.
 
 ## Requirements
 
@@ -110,11 +142,22 @@ curl -X POST http://127.0.0.1:8000/chat \
   -d '{"question":"Who should I captain this gameweek?"}'
 ```
 
+Ask a general football trivia question through the same endpoint:
+
+```bash
+curl -X POST http://127.0.0.1:8000/chat \
+  -H "Content-Type: application/json" \
+  -d '{"question":"Who won the 1966 World Cup?"}'
+```
+
 The response has this shape:
 
 ```json
-{"answer":"..."}
+{"answer":"...", "skill":"fpl"}
 ```
+
+The `skill` value is `fpl` for FPL analysis and `trivia` for general football
+questions. The existing `answer` field remains unchanged.
 
 For interactive API documentation, open
 `http://127.0.0.1:8000/docs` in a browser while the server is running.
@@ -151,6 +194,17 @@ from fpl_stato import FPLAssistant
 
 assistant = FPLAssistant(openai_client=OpenAI())
 answer = assistant.answer("Which players have the best upcoming fixtures?")
+print(answer)
+```
+
+For general football trivia, use the trivia assistant directly:
+
+```python
+from openai import OpenAI
+from fpl_stato import FootballTriviaAssistant
+
+assistant = FootballTriviaAssistant(openai_client=OpenAI())
+answer = assistant.answer("Who won the 1966 World Cup?")
 print(answer)
 ```
 

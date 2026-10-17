@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from .assistant import FPLAssistant
+from .routing import QuestionRouter
 from .data import FPLDataError
 
 
@@ -17,7 +19,7 @@ app.add_middleware(
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Content-Type"],
 )
-_assistant: FPLAssistant | None = None
+_assistant: QuestionRouter | None = None
 
 
 class ChatRequest(BaseModel):
@@ -26,12 +28,13 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     answer: str
+    skill: Literal["fpl", "trivia"]
 
 
-def get_assistant() -> FPLAssistant:
+def get_assistant() -> QuestionRouter:
     global _assistant
     if _assistant is None:
-        _assistant = FPLAssistant()
+        _assistant = QuestionRouter()
     return _assistant
 
 
@@ -43,9 +46,9 @@ def health() -> dict[str, str]:
 @app.post("/chat", response_model=ChatResponse)
 def chat(request: ChatRequest) -> ChatResponse:
     try:
-        answer = get_assistant().answer(request.question)
+        result = get_assistant().answer_with_skill(request.question)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except FPLDataError as exc:
         raise HTTPException(status_code=502, detail="FPL data is temporarily unavailable") from exc
-    return ChatResponse(answer=answer)
+    return ChatResponse(**result)
