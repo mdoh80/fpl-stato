@@ -87,7 +87,13 @@
         .suggestions { display: grid; gap: 8px; }.suggestion { width: 100%; padding: 11px 12px; border: 1px solid rgba(255, 255, 255, .12); border-radius: 11px; color: #e8f2eb; background: rgba(255, 255, 255, .05); text-align: left; font-size: .8rem; line-height: 1.35; }.suggestion:hover, .suggestion:focus-visible { border-color: rgba(0, 255, 133, .6); color: var(--green-soft); outline: none; background: rgba(0, 255, 133, .08); }
         .feature-list { display: grid; gap: 12px; }.feature { display: flex; gap: 9px; color: #dbe7df; font-size: .78rem; line-height: 1.4; }.feature b { display: block; color: #fff; }.feature-icon { color: var(--green); font-size: 1rem; }
         footer { display: flex; justify-content: space-between; gap: 10px; padding-top: 14px; color: #7e8e85; font-size: .68rem; }.footer-link { color: var(--green-soft); text-decoration: none; }
+        .skill-overlay { position: fixed; right: max(14px, env(safe-area-inset-right)); bottom: calc(96px + env(safe-area-inset-bottom)); z-index: 10; width: clamp(58px, 8vw, 86px); max-height: 18vh; pointer-events: none; opacity: 0; visibility: hidden; transform: translateY(7px) scale(.9); }
+        .skill-overlay img { display: block; width: 100%; max-height: 18vh; height: auto; object-fit: contain; filter: drop-shadow(0 8px 14px rgba(0, 0, 0, .35)); }
+        .skill-overlay.show { visibility: visible; animation: skill-overlay 1.25s ease-out forwards; }
         @keyframes appear { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } } @keyframes pulse { 50% { opacity: .25; } }
+        @keyframes skill-overlay { 0% { opacity: 0; transform: translateY(7px) scale(.9); } 18% { opacity: 1; transform: translateY(0) scale(1); } 76% { opacity: 1; transform: translateY(0) scale(1); } 100% { opacity: 0; transform: translateY(-3px) scale(.97); } }
+        @media (prefers-reduced-motion: reduce) { .skill-overlay.show { animation: skill-overlay-reduced 1.1s linear forwards; } }
+        @keyframes skill-overlay-reduced { 0% { opacity: 0; } 20% { opacity: 1; } 78% { opacity: 1; } 100% { opacity: 0; } }
         @media (max-width: 800px) { .workspace { grid-template-columns: 1fr; }.side { display: grid; grid-template-columns: 1fr 1fr; }.chat-card { min-height: 620px; } }
         @media (max-width: 560px) { .shell { padding: 16px 11px 12px; }.status { padding: 7px 9px; }.status-label { display: none; }.workspace { margin-top: 16px; }.side { display: block; }.side-card + .side-card { display: none; }.chat-card { min-height: calc(100vh - 126px); border-radius: 17px; }.chat-head { padding: 13px 14px; } #messages { padding: 18px 13px; }.bubble { max-width: 91%; font-size: .88rem; }.composer-wrap { padding: 10px 10px 12px; } footer { padding: 11px 2px 0; } }
     </style>
@@ -142,6 +148,9 @@
     </div>
     <footer><span>Recommendations are guidance, not guarantees.</span><a class="footer-link" href="https://fpl-stato.football-bot.com/health" target="_blank" rel="noreferrer">API status ↗</a></footer>
 </main>
+<div id="skill-overlay" class="skill-overlay">
+    <img id="skill-overlay-image" alt="">
+</div>
 <script>
     // The static client keeps a short local conversation while the API remains stateless.
     const API_URL = 'https://fpl-stato.football-bot.com/chat';
@@ -153,6 +162,23 @@
     const send = document.querySelector('#send');
     const clear = document.querySelector('#clear');
     const status = document.querySelector('#status');
+    const skillOverlay = document.querySelector('#skill-overlay');
+    const skillOverlayImage = document.querySelector('#skill-overlay-image');
+    const skillImages = {
+        fpl: 'https://raw.githubusercontent.com/mdoh80/images/main/football-comm.png',
+        trivia: 'https://raw.githubusercontent.com/mdoh80/images/main/football-stato.png',
+    };
+    let latestRequest = 0;
+
+    function showSkill(skill) {
+        const imageUrl = skillImages[skill];
+        if (!imageUrl) return;
+        skillOverlayImage.src = imageUrl;
+        skillOverlayImage.alt = skill === 'fpl' ? 'FPL assistant' : 'Football trivia assistant';
+        skillOverlay.classList.remove('show');
+        void skillOverlay.offsetWidth;
+        skillOverlay.classList.add('show');
+    }
 
     function escapeHtml(value) {
         return value.replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
@@ -212,6 +238,7 @@
     }
 
     async function ask(question) {
+        const requestId = ++latestRequest;
         addMessage(question, 'user');
         const pending = addMessage('Checking the latest FPL data', 'assistant', { pending: true });
         send.disabled = true; send.textContent = 'Thinking…';
@@ -219,6 +246,7 @@
             const response = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question }) });
             const data = await response.json();
             if (!response.ok) throw new Error(data.detail || 'The assistant could not answer right now.');
+            if (data.skill && requestId === latestRequest) showSkill(data.skill);
             pending.bubble.classList.remove('pending'); pending.bubble.innerHTML = renderMarkdown(data.answer); saveHistory();
         } catch (error) {
             pending.bubble.classList.remove('pending'); pending.bubble.classList.add('error-bubble'); pending.bubble.textContent = error.message || 'The assistant could not answer right now.';

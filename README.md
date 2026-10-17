@@ -49,6 +49,14 @@ Routing is local and deterministic; it does not make an additional model call
 just to classify a question. Ambiguous questions follow the routing rules and
 may need to be phrased with explicit FPL context for data-backed analysis.
 
+The static web client uses the API’s `skill` value to show a brief, non-blocking
+bot overlay after a successful answer. FPL responses use the commentator image
+at `football-comm.png`, while trivia responses use `football-stato.png`. The
+overlay does not classify questions itself, does not delay answers, respects
+reduced-motion preferences, and remains clear of the composer on small screens.
+The images are loaded from GitHub at runtime, so the overlay depends on that
+remote image host being reachable.
+
 ## Requirements
 
 You need:
@@ -145,8 +153,11 @@ curl -X POST http://127.0.0.1:8000/chat \
 The response has this shape:
 
 ```json
-{"answer":"..."}
+{"answer":"...", "skill":"fpl"}
 ```
+
+The `skill` value is `fpl` for FPL analysis and `trivia` for general football
+questions. The existing `answer` field remains unchanged.
 
 For interactive API documentation, open
 `http://127.0.0.1:8000/docs` in a browser while the server is running.

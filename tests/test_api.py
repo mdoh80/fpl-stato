@@ -14,13 +14,13 @@ def test_health():
 
 def test_chat_returns_assistant_answer():
     assistant = Mock()
-    assistant.answer.return_value = "Captain Salah."
+    assistant.answer_with_skill.return_value = {"answer": "Captain Salah.", "skill": "fpl"}
 
     with patch("fpl_stato.api._assistant", assistant):
         response = chat(ChatRequest(question="Who should I captain?"))
 
-    assert response == ChatResponse(answer="Captain Salah.")
-    assistant.answer.assert_called_once_with("Who should I captain?")
+    assert response == ChatResponse(answer="Captain Salah.", skill="fpl")
+    assistant.answer_with_skill.assert_called_once_with("Who should I captain?")
 
 
 @pytest.mark.parametrize(
@@ -32,7 +32,7 @@ def test_chat_returns_assistant_answer():
 )
 def test_chat_preserves_error_mapping(error, status_code, detail):
     assistant = Mock()
-    assistant.answer.side_effect = error
+    assistant.answer_with_skill.side_effect = error
 
     with patch("fpl_stato.api._assistant", assistant):
         with pytest.raises(HTTPException) as raised:

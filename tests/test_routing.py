@@ -36,6 +36,26 @@ def test_router_does_not_fetch_fpl_data_for_trivia():
 
 
 @pytest.mark.parametrize(
+    ("question", "expected_skill", "assistant_name"),
+    [
+        ("Who should I captain?", "fpl", "fpl"),
+        ("Who is Liverpool's current captain?", "trivia", "trivia"),
+    ],
+)
+def test_answer_with_skill_matches_backend_routing(question, expected_skill, assistant_name):
+    fpl = Mock()
+    fpl.answer.return_value = "FPL answer."
+    trivia = Mock()
+    trivia.answer.return_value = "Trivia answer."
+    router = QuestionRouter(fpl_assistant=fpl, trivia_assistant=trivia)
+
+    result = router.answer_with_skill(question)
+
+    assert result["skill"] == expected_skill
+    assert result["answer"] == ("FPL answer." if assistant_name == "fpl" else "Trivia answer.")
+
+
+@pytest.mark.parametrize(
     ("question", "assistant_name"),
     [
         ("Who should I captain?", "fpl"),

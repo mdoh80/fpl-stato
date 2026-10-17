@@ -88,8 +88,17 @@ class QuestionRouter:
         self.fpl_assistant = fpl_assistant
         self.trivia_assistant = trivia_assistant
 
-    def answer(self, question: str) -> str:
+    def skill_for_question(self, question: str) -> str:
+        """Return the backend skill selected for a question."""
         if not question.strip():
             raise ValueError("question must not be empty")
-        assistant = self.fpl_assistant if is_fpl_question(question) else self.trivia_assistant
-        return assistant.answer(question)
+        return "fpl" if is_fpl_question(question) else "trivia"
+
+    def answer_with_skill(self, question: str) -> dict[str, str]:
+        """Answer a question and return the selected skill with the text."""
+        skill = self.skill_for_question(question)
+        assistant = self.fpl_assistant if skill == "fpl" else self.trivia_assistant
+        return {"answer": assistant.answer(question), "skill": skill}
+
+    def answer(self, question: str) -> str:
+        return self.answer_with_skill(question)["answer"]
